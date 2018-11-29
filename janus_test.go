@@ -7,7 +7,7 @@ import (
 
 func TestMultiplier4x(t *testing.T) {
 	circuit := Multiplier4()
-	device := circuit.NewDevice()
+	device := circuit.NewDeviceBool()
 	for y := uint64(0); y < 16; y++ {
 		for x := uint64(0); x < 16; x++ {
 			device.SetUint64("Y", 4, y)

@@ -11,7 +11,7 @@ func main() {
 	//circuit.PrintRanked()
 	//circuit.PrintConnections("A12")
 
-	device := circuit.NewDevice()
+	device := circuit.NewDeviceBool()
 	target := 121
 	file, err := os.Create("points.dat")
 	if err != nil {

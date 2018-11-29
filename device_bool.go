@@ -2,19 +2,19 @@ package main
 
 import "fmt"
 
-type BoolDevice struct {
+type DeviceBool struct {
 	*Circuit
 	Memory []bool
 }
 
-func (d *BoolDevice) Reset() {
+func (d *DeviceBool) Reset() {
 	memory := d.Memory
 	for _, value := range d.Wires {
 		memory[value.Index] = value.Nominal
 	}
 }
 
-func (d *BoolDevice) SetBus(prefix string, values ...bool) {
+func (d *DeviceBool) SetBus(prefix string, values ...bool) {
 	memory := d.Memory
 	for i, value := range values {
 		name := fmt.Sprintf("%s%d", prefix, i)
@@ -23,15 +23,15 @@ func (d *BoolDevice) SetBus(prefix string, values ...bool) {
 	}
 }
 
-func (d *BoolDevice) Set(name string, value bool) {
+func (d *DeviceBool) Set(name string, value bool) {
 	d.Memory[d.Wires[d.Resolve(name)].Index] = value
 }
 
-func (d *BoolDevice) Get(name string) bool {
+func (d *DeviceBool) Get(name string) bool {
 	return d.Memory[d.Wires[d.Resolve(name)].Index]
 }
 
-func (d *BoolDevice) SetUint64(prefix string, count int, value uint64) {
+func (d *DeviceBool) SetUint64(prefix string, count int, value uint64) {
 	memory := d.Memory
 	for i := 0; i < count; i++ {
 		name := fmt.Sprintf("%s%d", prefix, i)
@@ -45,7 +45,7 @@ func (d *BoolDevice) SetUint64(prefix string, count int, value uint64) {
 	}
 }
 
-func (d *BoolDevice) Print(prefix string, count int) {
+func (d *DeviceBool) Print(prefix string, count int) {
 	memory := d.Memory
 	for i := 0; i < count; i++ {
 		name, bit := fmt.Sprintf("%s%d", prefix, i), 0
@@ -64,7 +64,7 @@ func (d *BoolDevice) Print(prefix string, count int) {
 	}
 }
 
-func (d *BoolDevice) Uint64(prefix string, count int) uint64 {
+func (d *DeviceBool) Uint64(prefix string, count int) uint64 {
 	var value uint64
 	memory := d.Memory
 	for i := 0; i < count; i++ {
@@ -85,7 +85,7 @@ func (d *BoolDevice) Uint64(prefix string, count int) uint64 {
 	return value
 }
 
-func (d *BoolDevice) Execute(reverse bool) {
+func (d *DeviceBool) Execute(reverse bool) {
 	memory := d.Memory
 
 	if reverse {

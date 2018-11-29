@@ -171,12 +171,12 @@ func (c *Circuit) PrintConnections(name string) {
 	}
 }
 
-func (c *Circuit) NewDevice() BoolDevice {
+func (c *Circuit) NewDeviceBool() DeviceBool {
 	memory := make([]bool, len(c.Wires))
 	for _, value := range c.Wires {
 		memory[value.Index] = value.Nominal
 	}
-	return BoolDevice{
+	return DeviceBool{
 		Circuit: c,
 		Memory:  memory,
 	}
