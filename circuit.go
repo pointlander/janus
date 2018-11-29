@@ -181,3 +181,16 @@ func (c *Circuit) NewDeviceBool() DeviceBool {
 		Memory:  memory,
 	}
 }
+
+func (c *Circuit) NewDeviceFloat32() DeviceFloat32 {
+	memory := make([]float32, len(c.Wires))
+	for _, value := range c.Wires {
+		if value.Nominal {
+			memory[value.Index] = 1.0
+		}
+	}
+	return DeviceFloat32{
+		Circuit: c,
+		Memory:  memory,
+	}
+}

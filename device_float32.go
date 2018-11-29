@@ -2,19 +2,23 @@ package main
 
 import "fmt"
 
-type DeviceBool struct {
+type DeviceFloat32 struct {
 	*Circuit
-	Memory []bool
+	Memory []float32
 }
 
-func (d *DeviceBool) Reset() {
+func (d *DeviceFloat32) Reset() {
 	memory := d.Memory
 	for _, value := range d.Wires {
-		memory[value.Index] = value.Nominal
+		if value.Nominal {
+			memory[value.Index] = 1.0
+		} else {
+			memory[value.Index] = 0
+		}
 	}
 }
 
-func (d *DeviceBool) SetBus(prefix string, values ...bool) {
+func (d *DeviceFloat32) SetBus(prefix string, values ...float32) {
 	memory := d.Memory
 	for i, value := range values {
 		name := fmt.Sprintf("%s%d", prefix, i)
@@ -23,45 +27,42 @@ func (d *DeviceBool) SetBus(prefix string, values ...bool) {
 	}
 }
 
-func (d *DeviceBool) Set(name string, value bool) {
+func (d *DeviceFloat32) Set(name string, value float32) {
 	d.Memory[d.Wires[d.Resolve(name)].Index] = value
 }
 
-func (d *DeviceBool) Get(name string) bool {
+func (d *DeviceFloat32) Get(name string) float32 {
 	return d.Memory[d.Wires[d.Resolve(name)].Index]
 }
 
-func (d *DeviceBool) SetUint64(prefix string, count int, value uint64) {
+func (d *DeviceFloat32) SetUint64(prefix string, count int, value uint64) {
 	memory := d.Memory
 	for i := 0; i < count; i++ {
 		name := fmt.Sprintf("%s%d", prefix, i)
 		s := d.Wires[d.Resolve(name)]
 		if value&1 == 0 {
-			memory[s.Index] = false
+			memory[s.Index] = 0
 		} else {
-			memory[s.Index] = true
+			memory[s.Index] = 1.0
 		}
 		value >>= 1
 	}
 }
 
-func (d *DeviceBool) Print(prefix string, count int) {
+func (d *DeviceFloat32) Print(prefix string, count int) {
 	memory := d.Memory
 	for i := 0; i < count; i++ {
-		name, bit := fmt.Sprintf("%s%d", prefix, i), 0
-		if memory[d.Wires[d.Resolve(name)].Index] {
-			bit = 1
-		}
-		fmt.Printf("%s=%d\n", name, bit)
+		name := fmt.Sprintf("%s%d", prefix, i)
+		fmt.Printf("%s=%f\n", name, memory[d.Wires[d.Resolve(name)].Index])
 	}
 }
 
-func (d *DeviceBool) Uint64(prefix string, count int) uint64 {
+func (d *DeviceFloat32) Uint64(prefix string, count int) uint64 {
 	var value uint64
 	memory := d.Memory
 	for i := 0; i < count; i++ {
 		name, bit := fmt.Sprintf("%s%d", prefix, i), uint64(0)
-		if memory[d.Wires[d.Resolve(name)].Index] {
+		if memory[d.Wires[d.Resolve(name)].Index] > 0.5 {
 			bit = 1
 		}
 		value = value | (bit << uint(i))
@@ -69,7 +70,7 @@ func (d *DeviceBool) Uint64(prefix string, count int) uint64 {
 	return value
 }
 
-func (d *DeviceBool) Execute(reverse bool) {
+func (d *DeviceFloat32) Execute(reverse bool) {
 	memory := d.Memory
 
 	if reverse {
@@ -78,18 +79,18 @@ func (d *DeviceBool) Execute(reverse bool) {
 			switch gate.Type {
 			case GateTypeNot:
 				a := memory[gate.Taps[0]]
-				a = !a
+				a = 1 - a
 				memory[gate.Taps[0]] = a
 			case GateTypeCNot:
 				a := memory[gate.Taps[0]]
 				b := memory[gate.Taps[1]]
-				b = a != b
+				b = (1-a)*b + (1-b)*a
 				memory[gate.Taps[1]] = b
 			case GateTypeCCNot:
 				a := memory[gate.Taps[0]]
 				b := memory[gate.Taps[1]]
 				c := memory[gate.Taps[2]]
-				c = (a && b) != c
+				c = (1-a*b)*c + (1-c)*a*b
 				memory[gate.Taps[2]] = c
 			}
 		}
@@ -100,18 +101,18 @@ func (d *DeviceBool) Execute(reverse bool) {
 		switch gate.Type {
 		case GateTypeNot:
 			a := memory[gate.Taps[0]]
-			a = !a
+			a = 1 - a
 			memory[gate.Taps[0]] = a
 		case GateTypeCNot:
 			a := memory[gate.Taps[0]]
 			b := memory[gate.Taps[1]]
-			b = a != b
+			b = (1-a)*b + (1-b)*a
 			memory[gate.Taps[1]] = b
 		case GateTypeCCNot:
 			a := memory[gate.Taps[0]]
 			b := memory[gate.Taps[1]]
 			c := memory[gate.Taps[2]]
-			c = (a && b) != c
+			c = (1-a*b)*c + (1-c)*a*b
 			memory[gate.Taps[2]] = c
 		}
 	}
