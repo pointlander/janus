@@ -3,10 +3,15 @@ package main
 import (
 	"flag"
 	"fmt"
+	"math"
+	"math/rand"
 	"os"
 )
 
-var graph = flag.Bool("graph", false, "graph the search space")
+var (
+	graph  = flag.Bool("graph", false, "graph the search space")
+	factor = flag.Uint("factor", 77, "number to factor")
+)
 
 func searchSpace() {
 	circuit := Multiplier4()
@@ -15,7 +20,7 @@ func searchSpace() {
 	//circuit.PrintConnections("A12")
 
 	device := circuit.NewDeviceBool()
-	target := 121
+	target := 225
 	file, err := os.Create("points.dat")
 	if err != nil {
 		panic(err)
@@ -67,24 +72,65 @@ func main() {
 		return
 	}
 
+	if *factor > 15*15 {
+		panic(fmt.Errorf("factor must be [0,%d]", 15*15))
+	}
+
+	rand.Seed(1)
+	iterations := 0
 	circuit := Multiplier4()
 	device := circuit.NewDeviceDual()
-	device.SetUint64("Y", 4, 4)
-	device.Set("Y0", Dual{Val: 1, Der: 1})
-	//device.Set("Y1", Dual{Val: .75, Der: 1})
-	device.SetUint64("X", 4, 5)
-	device.Execute(false)
-	target := 25
-	var total Dual
-	for i := 0; i < 8; i++ {
-		var a Dual
-		if target&1 == 1 {
-			a.Val = 1.0
+	device.SetUint64("Y", 4, 1)
+	device.SetUint64("X", 4, 1)
+	for {
+		iterations++
+		var name string
+		if rand.Intn(2) == 0 {
+			name = fmt.Sprintf("Y%d", rand.Intn(4))
+			bit := device.Get(name)
+			bit.Der = 1
+			device.Set(name, bit)
+		} else {
+			name = fmt.Sprintf("X%d", rand.Intn(4))
+			bit := device.Get(name)
+			bit.Der = 1
+			device.Set(name, bit)
 		}
-		b := device.Get(fmt.Sprintf("P%d", i))
-		total = Add(total, Pow(Sub(a, b), 2))
-		target >>= 1
+		device.Execute(false)
+		var total Dual
+		target := *factor
+		for i := 0; i < 8; i++ {
+			var a Dual
+			if target&1 == 1 {
+				a.Val = 1.0
+			}
+			b := device.Get(fmt.Sprintf("P%d", i))
+			total = Add(total, Pow(Sub(a, b), 2))
+			target >>= 1
+		}
+
+		fmt.Printf("%s Val: %f, Der: %f\n", name, total.Val, total.Der)
+		fmt.Printf("P: %d, Y: %d, X: %d\n", device.Uint64("P", 8), device.Uint64("Y", 4), device.Uint64("X", 4))
+		if math.IsNaN(float64(total.Der)) {
+			break
+		} else if total.Val == 0 {
+			break
+		}
+
+		if total.Der > 0 {
+			device.Set(name, Dual{0, 0})
+		} else if total.Der < 0 {
+			device.Set(name, Dual{1, 0})
+		} else {
+			bit := device.Get(name)
+			bit.Der = 0
+			device.Set(name, bit)
+		}
+		y := device.Uint64("Y", 4)
+		x := device.Uint64("X", 4)
+		device.Reset()
+		device.SetUint64("Y", 4, y)
+		device.SetUint64("X", 4, x)
 	}
-	fmt.Printf("Val: %f, Der: %f\n", total.Val, total.Der)
-	device.Reset()
+	fmt.Printf("iterations=%d\n", iterations)
 }
