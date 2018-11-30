@@ -194,3 +194,16 @@ func (c *Circuit) NewDeviceFloat32() DeviceFloat32 {
 		Memory:  memory,
 	}
 }
+
+func (c *Circuit) NewDeviceDual() DeviceDual {
+	memory := make([]Dual, len(c.Wires))
+	for _, value := range c.Wires {
+		if value.Nominal {
+			memory[value.Index] = Dual{Val: 1.0}
+		}
+	}
+	return DeviceDual{
+		Circuit: c,
+		Memory:  memory,
+	}
+}

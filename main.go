@@ -1,11 +1,14 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"os"
 )
 
-func main() {
+var graph = flag.Bool("graph", false, "graph the search space")
+
+func searchSpace() {
 	circuit := Multiplier4()
 	circuit.ComputeRanks()
 	//circuit.PrintRanked()
@@ -54,5 +57,34 @@ func main() {
 			fmt.Fprintf(fileSimple, "%d %d %d\n", x, y, fitness)
 		}
 	}
+}
 
+func main() {
+	flag.Parse()
+
+	if *graph {
+		searchSpace()
+		return
+	}
+
+	circuit := Multiplier4()
+	device := circuit.NewDeviceDual()
+	device.SetUint64("Y", 4, 4)
+	device.Set("Y0", Dual{Val: 1, Der: 1})
+	//device.Set("Y1", Dual{Val: .75, Der: 1})
+	device.SetUint64("X", 4, 5)
+	device.Execute(false)
+	target := 25
+	var total Dual
+	for i := 0; i < 8; i++ {
+		var a Dual
+		if target&1 == 1 {
+			a.Val = 1.0
+		}
+		b := device.Get(fmt.Sprintf("P%d", i))
+		total = Add(total, Pow(Sub(a, b), 2))
+		target >>= 1
+	}
+	fmt.Printf("Val: %f, Der: %f\n", total.Val, total.Der)
+	device.Reset()
 }
