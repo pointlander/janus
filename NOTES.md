@@ -21,3 +21,8 @@ x = x - xy + y - xy
 x = x + y - 2xy
 
 x = (1 - .5 * y1 - .5 * y2) * x + (1 - x) * (.5 * y1 + .5 * y2)
+
+Use sqrt as starting point
+Make search more granular
+Use waste heat in search
+Reshape search space

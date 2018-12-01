@@ -42,17 +42,24 @@ func NewCircuit() Circuit {
 	}
 }
 
-func (c *Circuit) AddBus(prefix string, count int, nominal bool) {
+func (c *Circuit) AddBus(prefix string, count int, alias bool, nominal ...bool) {
 	_, ok := c.Buses[prefix]
 	if ok {
 		panic(fmt.Errorf("bus %s already exists", prefix))
 	}
 	c.Buses[prefix] = uint32(count)
+	if alias {
+		return
+	}
+	nom := false
+	if len(nominal) > 0 {
+		nom = nominal[0]
+	}
 	for i := 0; i < count; i++ {
 		name := fmt.Sprintf("%s%d", prefix, i)
 		c.Wires[name] = Wire{
 			Name:    name,
-			Nominal: nominal,
+			Nominal: nom,
 			Index:   uint32(len(c.Wires)),
 		}
 	}
@@ -70,12 +77,17 @@ func (c *Circuit) AddWire(name string, nominal bool) {
 	}
 }
 
-func (c *Circuit) AddAlias(name, alias string) {
+func (c *Circuit) AddAlias(name, alias string) string {
+	if i, ok := c.Buses[alias]; ok {
+		c.Buses[alias] = i + 1
+		alias = fmt.Sprintf("%s%d", alias, i)
+	}
 	_, ok := c.Aliases[alias]
 	if ok {
 		panic(fmt.Errorf("alias %s already exists", alias))
 	}
 	c.Aliases[alias] = name
+	return alias
 }
 
 func (c *Circuit) Resolve(name string) string {

@@ -70,6 +70,27 @@ func (d *DeviceDual) Uint64(prefix string, count int) uint64 {
 	return value
 }
 
+func (d *DeviceDual) AllocateSlice(prefix string) []Dual {
+	count := int(d.Buses[prefix])
+	return make([]Dual, count)
+}
+
+func (d *DeviceDual) GetSlice(prefix string, values []Dual) {
+	count, memory := int(d.Buses[prefix]), d.Memory
+	for i := 0; i < count; i++ {
+		name := fmt.Sprintf("%s%d", prefix, i)
+		values[i] = memory[d.Wires[d.Resolve(name)].Index]
+	}
+}
+
+func (d *DeviceDual) SetSlice(prefix string, values []Dual) {
+	count, memory := int(d.Buses[prefix]), d.Memory
+	for i := 0; i < count; i++ {
+		name := fmt.Sprintf("%s%d", prefix, i)
+		memory[d.Wires[d.Resolve(name)].Index] = values[i]
+	}
+}
+
 func (d *DeviceDual) Execute(reverse bool) {
 	memory := d.Memory
 
