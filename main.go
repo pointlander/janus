@@ -13,10 +13,11 @@ import (
 )
 
 var (
-	graph   = flag.Bool("graph", false, "graph the search space")
-	factor  = flag.Uint("factor", 77, "number to factor")
-	all     = flag.String("all", "", "factor all numbers")
-	reverse = flag.Bool("reverse", false, "factor in reverse")
+	help   = flag.Bool("help", false, "prints help")
+	graph  = flag.Bool("graph", false, "graph the search space")
+	factor = flag.Uint("factor", 77, "number to factor")
+	all    = flag.Bool("all", false, "factor all numbers")
+	mode   = flag.String("mode", "forward", "factoring algorithm")
 )
 
 func searchSpace() {
@@ -483,6 +484,11 @@ search:
 func main() {
 	flag.Parse()
 
+	if *help {
+		flag.PrintDefaults()
+		return
+	}
+
 	if *graph {
 		searchSpace()
 		return
@@ -492,13 +498,20 @@ func main() {
 		panic(fmt.Errorf("factor must be [0,%d]", 15*15))
 	}
 
-	if *all != "" {
-		f, iterations := factorForward, 1000
-		if *all == "reverse" {
-			f, iterations = factorReverse, 100
-		} else if *all == "prob" {
-			f, iterations = factorForwardProbabilistic, 1000
-		}
+	var f func(factor uint, limit int, log bool) (y, x uint64, factored bool)
+	var iterations int
+	switch *mode {
+	case "forward":
+		f, iterations = factorForward, 1000
+	case "reverse":
+		f, iterations = factorReverse, 100
+	case "prob":
+		f, iterations = factorForwardProbabilistic, 1000
+	default:
+		panic("invalid mode; valid modes: [forward, reverse, prob]")
+	}
+
+	if *all {
 		primes := []uint{2, 3}
 		for i := uint(4); i < uint(226); i++ {
 			isPrime := true
@@ -541,10 +554,5 @@ func main() {
 		return
 	}
 
-	if *reverse {
-		factorReverse(*factor, 0, true)
-		return
-	}
-
-	factorForward(*factor, 0, true)
+	f(*factor, 0, true)
 }
