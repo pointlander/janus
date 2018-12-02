@@ -443,23 +443,23 @@ search:
 			device.SetSlice("G", values)
 			device.SetUint64("P", 8, uint64(factor))
 			device.Execute(true)
-			var total Dual
+			var cost Dual
 			for i := 0; i < 16; i++ {
 				a := device.Get(fmt.Sprintf("A%d", i))
-				total = Add(total, Pow(a, 2))
+				cost = Add(cost, Pow(a, 2))
 			}
 			for i := 0; i < 12; i++ {
 				a := device.Get(fmt.Sprintf("Z%d", i))
-				total = Add(total, Pow(a, 2))
+				cost = Add(cost, Pow(a, 2))
 			}
 
 			if log {
-				fmt.Printf("%d Val: %f, Der: %f\n", name, total.Val, total.Der)
+				fmt.Printf("%d Val: %f, Der: %f\n", name, cost.Val, cost.Der)
 				fmt.Printf("Y: %d, X: %d\n", device.Uint64("Y", 4), device.Uint64("X", 4))
 			}
-			if math.IsNaN(float64(total.Der)) {
+			if math.IsNaN(float64(cost.Der)) {
 				break search
-			} else if total.Val == 0 {
+			} else if cost.Val == 0 {
 				y = device.Uint64("Y", 4)
 				x = device.Uint64("X", 4)
 				factored = true
@@ -467,9 +467,9 @@ search:
 			}
 
 			values[name].Der = 0.0
-			if total.Der > 0 {
+			if cost.Der > 0 {
 				values[name].Val = 0.0
-			} else if total.Der < 0 {
+			} else if cost.Der < 0 {
 				values[name].Val = 1.0
 			}
 			device.Reset()
