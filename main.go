@@ -11,7 +11,7 @@ import (
 var (
 	graph   = flag.Bool("graph", false, "graph the search space")
 	factor  = flag.Uint("factor", 77, "number to factor")
-	all     = flag.Bool("all", false, "factor all numbers")
+	all     = flag.String("all", "", "factor all numbers")
 	reverse = flag.Bool("reverse", false, "factor in reverse")
 )
 
@@ -305,7 +305,11 @@ func main() {
 		panic(fmt.Errorf("factor must be [0,%d]", 15*15))
 	}
 
-	if *all {
+	if *all != "" {
+		f, iterations := factorForward, 1000
+		if *all == "reverse" {
+			f, iterations = factorReverse, 100
+		}
 		primes := []uint{2, 3}
 		for i := uint(4); i < uint(226); i++ {
 			isPrime := true
@@ -335,7 +339,7 @@ func main() {
 			fmt.Printf("%d (%d)", i, factors)
 			if primeMap[i] {
 				fmt.Printf(" is prime\n")
-			} else if y, x, ok := factorForward(uint(i), 1000, false); ok {
+			} else if y, x, ok := f(uint(i), iterations, false); ok {
 				fmt.Printf(" factored %d %d\n", y, x)
 				factored++
 				total++
@@ -354,20 +358,4 @@ func main() {
 	}
 
 	factorForward(*factor, 0, true)
-
-	/*factored, total = 0, 0
-	for i := uint(2); i < uint(226); i++ {
-		fmt.Printf("%d", i)
-		if primeMap[i] {
-			fmt.Printf(" is prime\n")
-		} else if y, x, ok := factorReverse(uint(i), 100, false); ok {
-			fmt.Printf(" factored %d %d\n", y, x)
-			factored++
-			total++
-		} else {
-			total++
-			fmt.Printf("\n")
-		}
-	}
-	fmt.Printf("factored=%d/%d\n", factored, total)*/
 }
