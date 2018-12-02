@@ -26,3 +26,5 @@ Use sqrt as starting point
 Make search more granular
 Use waste heat in search
 Reshape search space
+
+Restructure adder network in random ways
