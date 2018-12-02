@@ -11,6 +11,7 @@ import (
 var (
 	graph   = flag.Bool("graph", false, "graph the search space")
 	factor  = flag.Uint("factor", 77, "number to factor")
+	all     = flag.Bool("all", false, "factor all numbers")
 	reverse = flag.Bool("reverse", false, "factor in reverse")
 )
 
@@ -78,27 +79,22 @@ func factorForward(factor uint, limit int, log bool) (y, x uint64, factored bool
 	device.SetUint64("Y", 4, 15)
 	device.SetUint64("X", 4, 15)
 	hills := []Hill{}
-	lastX, lastY, count := uint64(0), uint64(0), 0
-	yy, xx := device.AllocateSlice("Y"), device.AllocateSlice("X")
+	inputs := device.AllocateSlice("I")
+	device.GetSlice("I", inputs)
+	lastX, lastY, stuck := uint64(0), uint64(0), 0
 	for {
 		iterations++
 		if limit != 0 && iterations > limit {
 			break
 		}
-		var name string
-		if rand.Intn(2) == 0 {
-			name = fmt.Sprintf("Y%d", rand.Intn(4))
-			bit := device.Get(name)
-			bit.Der = 1
-			device.Set(name, bit)
-		} else {
-			name = fmt.Sprintf("X%d", rand.Intn(4))
-			bit := device.Get(name)
-			bit.Der = 1
-			device.Set(name, bit)
-		}
+
+		input := rand.Intn(len(inputs))
+		inputs[input].Der = 1
+		device.SetSlice("I", inputs)
+		inputs[input].Der = 0
 		device.Execute(false)
-		var total Dual
+
+		var cost Dual
 		target := factor
 		for i := 0; i < 8; i++ {
 			var a Dual
@@ -106,7 +102,7 @@ func factorForward(factor uint, limit int, log bool) (y, x uint64, factored bool
 				a.Val = 1.0
 			}
 			b := device.Get(fmt.Sprintf("P%d", i))
-			total = Add(total, Pow(Sub(a, b), 2))
+			cost = Add(cost, Pow(Sub(a, b), 2))
 			target >>= 1
 		}
 
@@ -132,7 +128,7 @@ func factorForward(factor uint, limit int, log bool) (y, x uint64, factored bool
 				}
 				hill.X >>= 1
 			}
-			total = Add(total, acc)
+			cost = Add(cost, acc)
 		}
 
 		// Y != 1
@@ -148,7 +144,7 @@ func factorForward(factor uint, limit int, log bool) (y, x uint64, factored bool
 			}
 			hill >>= 1
 		}
-		total = Add(total, acc)
+		cost = Add(cost, acc)
 
 		// X != 1
 		hill = 1
@@ -163,7 +159,7 @@ func factorForward(factor uint, limit int, log bool) (y, x uint64, factored bool
 			}
 			hill >>= 1
 		}
-		total = Add(total, acc)
+		cost = Add(cost, acc)
 
 		// Y != 0
 		hill = 0
@@ -178,7 +174,7 @@ func factorForward(factor uint, limit int, log bool) (y, x uint64, factored bool
 			}
 			hill >>= 1
 		}
-		total = Add(total, acc)
+		cost = Add(cost, acc)
 
 		// X != 0
 		hill = 0
@@ -193,47 +189,41 @@ func factorForward(factor uint, limit int, log bool) (y, x uint64, factored bool
 			}
 			hill >>= 1
 		}
-		total = Add(total, acc)
+		cost = Add(cost, acc)
 
 		if log {
-			fmt.Printf("%s Val: %f, Der: %f\n", name, total.Val, total.Der)
+			fmt.Printf("%d Val: %f, Der: %f\n", input, cost.Val, cost.Der)
 			fmt.Printf("P: %d, Y: %d, X: %d\n", device.Uint64("P", 8), device.Uint64("Y", 4), device.Uint64("X", 4))
 		}
-		if math.IsNaN(float64(total.Der)) {
+		if math.IsNaN(float64(cost.Der)) {
 			break
-		} else if total.Val == 0 {
+		} else if cost.Val == 0 {
 			y = device.Uint64("Y", 4)
 			x = device.Uint64("X", 4)
 			factored = true
 			break
 		}
 
-		bit := device.Get(name)
-		bit.Der = 0
-		if total.Der > 0 {
-			bit.Val = 0
-		} else if total.Der < 0 {
-			bit.Val = 1
+		if cost.Der > 0 {
+			inputs[input].Val = 0
+		} else if cost.Der < 0 {
+			inputs[input].Val = 1
 		}
-		device.Set(name, bit)
 
-		y := device.Uint64("Y", 4)
-		x := device.Uint64("X", 4)
-		if y == lastY && x == lastX {
-			count++
+		yy := device.Uint64("Y", 4)
+		xx := device.Uint64("X", 4)
+		if yy == lastY && xx == lastX {
+			stuck++
 		} else {
-			count = 0
+			stuck = 0
 		}
-		if count > 16 {
-			count = 0
-			hills = append(hills, Hill{Y: y, X: x})
+		lastY, lastX = yy, xx
+		if stuck > 16 {
+			stuck = 0
+			hills = append(hills, Hill{Y: yy, X: xx})
 		}
-		lastY, lastX = y, x
-		device.GetSlice("Y", yy)
-		device.GetSlice("X", xx)
+
 		device.Reset()
-		device.SetSlice("Y", yy)
-		device.SetSlice("X", xx)
 	}
 	if log {
 		fmt.Printf("iterations=%d\n", iterations)
@@ -315,50 +305,55 @@ func main() {
 		panic(fmt.Errorf("factor must be [0,%d]", 15*15))
 	}
 
+	if *all {
+		primes := []uint{2, 3}
+		for i := uint(4); i < uint(226); i++ {
+			isPrime := true
+			for _, prime := range primes {
+				if i%prime == 0 {
+					isPrime = false
+					break
+				}
+			}
+			if isPrime {
+				primes = append(primes, i)
+			}
+		}
+		primeMap := make(map[uint]bool)
+		for _, prime := range primes {
+			primeMap[prime] = true
+		}
+
+		factored, total := 0, 0
+		for i := uint(2); i < uint(226); i++ {
+			factors := 0
+			for _, prime := range primes {
+				if i%prime == 0 {
+					factors++
+				}
+			}
+			fmt.Printf("%d (%d)", i, factors)
+			if primeMap[i] {
+				fmt.Printf(" is prime\n")
+			} else if y, x, ok := factorForward(uint(i), 1000, false); ok {
+				fmt.Printf(" factored %d %d\n", y, x)
+				factored++
+				total++
+			} else {
+				total++
+				fmt.Printf("\n")
+			}
+		}
+		fmt.Printf("factored=%d/%d\n", factored, total)
+		return
+	}
+
 	if *reverse {
 		factorReverse(*factor, 0, true)
 		return
 	}
 
-	primes := []uint{2, 3}
-	for i := uint(4); i < uint(226); i++ {
-		isPrime := true
-		for _, prime := range primes {
-			if i%prime == 0 {
-				isPrime = false
-				break
-			}
-		}
-		if isPrime {
-			primes = append(primes, i)
-		}
-	}
-	primeMap := make(map[uint]bool)
-	for _, prime := range primes {
-		primeMap[prime] = true
-	}
-
-	factored, total := 0, 0
-	for i := uint(2); i < uint(226); i++ {
-		factors := 0
-		for _, prime := range primes {
-			if i%prime == 0 {
-				factors++
-			}
-		}
-		fmt.Printf("%d (%d)", i, factors)
-		if primeMap[i] {
-			fmt.Printf(" is prime\n")
-		} else if y, x, ok := factorForward(uint(i), 1000, false); ok {
-			fmt.Printf(" factored %d %d\n", y, x)
-			factored++
-			total++
-		} else {
-			total++
-			fmt.Printf("\n")
-		}
-	}
-	fmt.Printf("factored=%d/%d\n", factored, total)
+	factorForward(*factor, 0, true)
 
 	/*factored, total = 0, 0
 	for i := uint(2); i < uint(226); i++ {

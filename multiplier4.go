@@ -3,20 +3,17 @@ package main
 func Multiplier4() Circuit {
 	circuit := NewCircuit()
 
+	circuit.AddBus("I", 0, true)
 	circuit.AddBus("Y", 4, false)
 	circuit.AddBus("X", 4, false)
 	circuit.AddBus("A", 16, false)
 	circuit.AddBus("P", 8, true)
 	circuit.AddBus("G", 0, true)
 
-	circuit.AddAlias("Y0", "G")
-	circuit.AddAlias("Y1", "G")
-	circuit.AddAlias("Y2", "G")
-	circuit.AddAlias("Y3", "G")
-	circuit.AddAlias("X0", "G")
-	circuit.AddAlias("X1", "G")
-	circuit.AddAlias("X2", "G")
-	circuit.AddAlias("X3", "G")
+	circuit.AddAlias("Y", "I")
+	circuit.AddAlias("X", "I")
+	circuit.AddAlias("Y", "G")
+	circuit.AddAlias("X", "G")
 
 	circuit.AddGateCCNot("Y0", "X0", "A0")
 	circuit.AddGateCCNot("Y1", "X0", "A1")

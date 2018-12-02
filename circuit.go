@@ -77,17 +77,27 @@ func (c *Circuit) AddWire(name string, nominal bool) {
 	}
 }
 
-func (c *Circuit) AddAlias(name, alias string) string {
-	if i, ok := c.Buses[alias]; ok {
-		c.Buses[alias] = i + 1
-		alias = fmt.Sprintf("%s%d", alias, i)
+func (c *Circuit) AddAlias(name, alias string) []string {
+	f := func(name, alias string) string {
+		if i, ok := c.Buses[alias]; ok {
+			c.Buses[alias] = i + 1
+			alias = fmt.Sprintf("%s%d", alias, i)
+		}
+		_, ok := c.Aliases[alias]
+		if ok {
+			panic(fmt.Errorf("alias %s already exists", alias))
+		}
+		c.Aliases[alias] = name
+		return alias
 	}
-	_, ok := c.Aliases[alias]
-	if ok {
-		panic(fmt.Errorf("alias %s already exists", alias))
+	if i, ok := c.Buses[name]; ok {
+		aliases := make([]string, i)
+		for j := 0; j < int(i); j++ {
+			aliases[j] = f(fmt.Sprintf("%s%d", name, j), alias)
+		}
+		return aliases
 	}
-	c.Aliases[alias] = name
-	return alias
+	return []string{f(name, alias)}
 }
 
 func (c *Circuit) Resolve(name string) string {
