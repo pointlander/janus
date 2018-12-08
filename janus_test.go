@@ -15,10 +15,10 @@ func TestMultiplier4xBool(t *testing.T) {
 	device := circuit.NewDeviceBool()
 	for y := uint64(0); y < 16; y++ {
 		for x := uint64(0); x < 16; x++ {
-			device.SetUint64("Y", 4, y)
-			device.SetUint64("X", 4, x)
+			device.SetUint64("Y", y)
+			device.SetUint64("X", x)
 			device.Execute(false)
-			r := device.Uint64("P", 8)
+			r := device.Uint64("P")
 			if r != x*y {
 				t.Fatalf("%d * %d != %d (%d)", x, y, r, x*y)
 			}
@@ -45,10 +45,10 @@ func TestMultiplier4xFloat32(t *testing.T) {
 	device := circuit.NewDeviceFloat32()
 	for y := uint64(0); y < 16; y++ {
 		for x := uint64(0); x < 16; x++ {
-			device.SetUint64("Y", 4, y)
-			device.SetUint64("X", 4, x)
+			device.SetUint64("Y", y)
+			device.SetUint64("X", x)
 			device.Execute(false)
-			r := device.Uint64("P", 8)
+			r := device.Uint64("P")
 			if r != x*y {
 				t.Fatalf("%d * %d != %d (%d)", x, y, r, x*y)
 			}
@@ -75,10 +75,10 @@ func TestMultiplier4xDual(t *testing.T) {
 	device := circuit.NewDeviceDual()
 	for y := uint64(0); y < 16; y++ {
 		for x := uint64(0); x < 16; x++ {
-			device.SetUint64("Y", 4, y)
-			device.SetUint64("X", 4, x)
+			device.SetUint64("Y", y)
+			device.SetUint64("X", x)
 			device.Execute(false)
-			r := device.Uint64("P", 8)
+			r := device.Uint64("P")
 			if r != x*y {
 				t.Fatalf("%d * %d != %d (%d)", x, y, r, x*y)
 			}
@@ -106,4 +106,44 @@ func TestDual(t *testing.T) {
 	if math.Round(float64(f.Der)) != 60.0 {
 		t.Fatal("derivative should be 60")
 	}
+}
+
+func TestMultiplier(t *testing.T) {
+	test := func(size int) {
+		circuit := Multiplier(size)
+		max := uint64(1)
+		for i := 0; i < size; i++ {
+			max *= 2
+		}
+		device := circuit.NewDeviceBool()
+		for y := uint64(0); y < max; y++ {
+			for x := uint64(0); x < max; x++ {
+				device.SetUint64("Y", y)
+				device.SetUint64("X", x)
+				device.Execute(false)
+				r := device.Uint64("P")
+				if r != x*y {
+					t.Fatalf("%d * %d != %d (%d)", x, y, r, x*y)
+				}
+				device.Execute(true)
+				a := int(circuit.Buses["A"])
+				for i := 0; i < a; i++ {
+					name := fmt.Sprintf("A%d", i)
+					if device.Get(name) {
+						t.Fatal("should be zero")
+					}
+				}
+				z := int(circuit.Buses["Z"])
+				for i := 0; i < z; i++ {
+					name := fmt.Sprintf("Z%d", i)
+					if device.Get(name) {
+						t.Fatal("should be zero")
+					}
+				}
+				device.Reset()
+			}
+		}
+	}
+	test(4)
+	test(8)
 }

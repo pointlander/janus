@@ -69,7 +69,11 @@ func (c *Circuit) AddBus(prefix string, count int, alias bool, nominal ...bool) 
 	}
 }
 
-func (c *Circuit) AddWire(name string, nominal bool) {
+func (c *Circuit) AddWire(name string, nominal bool) string {
+	if i, ok := c.Buses[name]; ok {
+		c.Buses[name] = i + 1
+		name = fmt.Sprintf("%s%d", name, i)
+	}
 	_, ok := c.Wires[name]
 	if ok {
 		panic(fmt.Errorf("wire %s already exists", name))
@@ -79,6 +83,7 @@ func (c *Circuit) AddWire(name string, nominal bool) {
 		Nominal: nominal,
 		Index:   uint32(len(c.Wires)),
 	}
+	return name
 }
 
 func (c *Circuit) AddAlias(name, alias string) []string {

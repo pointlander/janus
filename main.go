@@ -40,10 +40,10 @@ func searchSpace() {
 	defer fileSimple.Close()
 	for y := uint64(0); y < 16; y++ {
 		for x := uint64(0); x < 16; x++ {
-			device.SetUint64("Y", 4, y)
-			device.SetUint64("X", 4, x)
+			device.SetUint64("Y", y)
+			device.SetUint64("X", x)
 			device.Execute(false)
-			device.SetUint64("P", 8, uint64(target))
+			device.SetUint64("P", uint64(target))
 			device.Execute(true)
 			count := 0.0
 			for i := 0; i < 16; i++ {
@@ -81,8 +81,8 @@ func factorForward(factor uint, limit int, log bool) (y, x uint64, factored bool
 	circuit := Multiplier4()
 	device := circuit.NewDeviceDual()
 	//root := uint64(math.Sqrt(float64(factor)))
-	device.SetUint64("Y", 4, 15)
-	device.SetUint64("X", 4, 15)
+	device.SetUint64("Y", 15)
+	device.SetUint64("X", 15)
 	hills := []Hill{}
 	inputs := device.AllocateSlice("I")
 	device.GetSlice("I", inputs)
@@ -198,13 +198,13 @@ func factorForward(factor uint, limit int, log bool) (y, x uint64, factored bool
 
 		if log {
 			fmt.Printf("%d Val: %f, Der: %f\n", input, cost.Val, cost.Der)
-			fmt.Printf("P: %d, Y: %d, X: %d\n", device.Uint64("P", 8), device.Uint64("Y", 4), device.Uint64("X", 4))
+			fmt.Printf("P: %d, Y: %d, X: %d\n", device.Uint64("P"), device.Uint64("Y"), device.Uint64("X"))
 		}
 		if math.IsNaN(float64(cost.Der)) {
 			break
 		} else if cost.Val == 0 {
-			y = device.Uint64("Y", 4)
-			x = device.Uint64("X", 4)
+			y = device.Uint64("Y")
+			x = device.Uint64("X")
 			factored = true
 			break
 		}
@@ -215,8 +215,8 @@ func factorForward(factor uint, limit int, log bool) (y, x uint64, factored bool
 			inputs[input].Val = 1
 		}
 
-		yy := device.Uint64("Y", 4)
-		xx := device.Uint64("X", 4)
+		yy := device.Uint64("Y")
+		xx := device.Uint64("X")
 		if yy == lastY && xx == lastX {
 			stuck++
 		} else {
@@ -247,8 +247,8 @@ func factorForwardProbabilistic(factor uint, limit int, log bool) (y, x uint64, 
 	circuit := Multiplier4()
 	device := circuit.NewDeviceDual()
 	//root := uint64(math.Sqrt(float64(factor)))
-	device.SetUint64("Y", 4, 15)
-	device.SetUint64("X", 4, 15)
+	device.SetUint64("Y", 15)
+	device.SetUint64("X", 15)
 	hills := []Hill{}
 	inputs := device.AllocateSlice("I")
 	device.GetSlice("I", inputs)
@@ -366,13 +366,13 @@ search:
 
 			if log {
 				fmt.Printf("%d Val: %f, Der: %f\n", input, cost.Val, cost.Der)
-				fmt.Printf("P: %d, Y: %d, X: %d\n", device.Uint64("P", 8), device.Uint64("Y", 4), device.Uint64("X", 4))
+				fmt.Printf("P: %d, Y: %d, X: %d\n", device.Uint64("P"), device.Uint64("Y"), device.Uint64("X"))
 			}
 			if math.IsNaN(float64(cost.Der)) {
 				break search
 			} else if cost.Val == 0 {
-				y = device.Uint64("Y", 4)
-				x = device.Uint64("X", 4)
+				y = device.Uint64("Y")
+				x = device.Uint64("X")
 				factored = true
 				break search
 			}
@@ -400,8 +400,8 @@ search:
 		inputs[mutate].Val = 1 - inputs[mutate].Val
 
 		device.SetSlice("I", inputs)
-		yy := device.Uint64("Y", 4)
-		xx := device.Uint64("X", 4)
+		yy := device.Uint64("Y")
+		xx := device.Uint64("X")
 		if yy == lastY && xx == lastX {
 			stuck++
 		} else {
@@ -441,7 +441,7 @@ search:
 			//name := rand.Intn(len(values))
 			values[name].Der = 1.0
 			device.SetSlice("G", values)
-			device.SetUint64("P", 8, uint64(factor))
+			device.SetUint64("P", uint64(factor))
 			device.Execute(true)
 			var cost Dual
 			for i := 0; i < 16; i++ {
@@ -455,13 +455,13 @@ search:
 
 			if log {
 				fmt.Printf("%d Val: %f, Der: %f\n", name, cost.Val, cost.Der)
-				fmt.Printf("Y: %d, X: %d\n", device.Uint64("Y", 4), device.Uint64("X", 4))
+				fmt.Printf("Y: %d, X: %d\n", device.Uint64("Y"), device.Uint64("X"))
 			}
 			if math.IsNaN(float64(cost.Der)) {
 				break search
 			} else if cost.Val == 0 {
-				y = device.Uint64("Y", 4)
-				x = device.Uint64("X", 4)
+				y = device.Uint64("Y")
+				x = device.Uint64("X")
 				factored = true
 				break search
 			}

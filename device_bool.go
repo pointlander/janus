@@ -35,9 +35,16 @@ func (d *DeviceBool) Get(name string) bool {
 	return d.Memory[d.Wires[d.Resolve(name)].Index]
 }
 
-func (d *DeviceBool) SetUint64(prefix string, count int, value uint64) {
+func (d *DeviceBool) SetUint64(prefix string, value uint64) {
+	width, ok := d.Buses[prefix]
+	if !ok {
+		panic(fmt.Errorf("bus %s not found", prefix))
+	}
+	if width > 64 {
+		panic(fmt.Errorf("bus %s is larger than uint64", prefix))
+	}
 	memory := d.Memory
-	for i := 0; i < count; i++ {
+	for i := 0; i < int(width); i++ {
 		name := fmt.Sprintf("%s%d", prefix, i)
 		s := d.Wires[d.Resolve(name)]
 		if value&1 == 0 {
@@ -60,10 +67,17 @@ func (d *DeviceBool) Print(prefix string, count int) {
 	}
 }
 
-func (d *DeviceBool) Uint64(prefix string, count int) uint64 {
+func (d *DeviceBool) Uint64(prefix string) uint64 {
+	width, ok := d.Buses[prefix]
+	if !ok {
+		panic(fmt.Errorf("bus %s not found", prefix))
+	}
+	if width > 64 {
+		panic(fmt.Errorf("bus %s is larger than uint64", prefix))
+	}
 	var value uint64
 	memory := d.Memory
-	for i := 0; i < count; i++ {
+	for i := 0; i < int(width); i++ {
 		name, bit := fmt.Sprintf("%s%d", prefix, i), uint64(0)
 		if memory[d.Wires[d.Resolve(name)].Index] {
 			bit = 1
