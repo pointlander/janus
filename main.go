@@ -71,18 +71,23 @@ func searchSpace() {
 	}
 }
 
-func factorForward(factor uint, limit int, log bool) (y, x uint64, factored bool) {
+func factorForward(size int, factor uint, limit int, log bool) (y, x uint64, factored bool) {
 	type Hill struct {
 		Y, X uint64
+	}
+	max := uint64(1)
+	for i := 0; i < size; i++ {
+		max *= 2
 	}
 
 	rand.Seed(1)
 	iterations := 0
-	circuit := Multiplier4()
+	//circuit := Multiplier4()
+	circuit := Multiplier(size, FullAdderA1, HalfAdderA1)
 	device := circuit.NewDeviceDual()
 	//root := uint64(math.Sqrt(float64(factor)))
-	device.SetUint64("Y", 15)
-	device.SetUint64("X", 15)
+	device.SetUint64("Y", max-1)
+	device.SetUint64("X", max-1)
 	hills := []Hill{}
 	inputs := device.AllocateSlice("I")
 	device.GetSlice("I", inputs)
@@ -101,7 +106,7 @@ func factorForward(factor uint, limit int, log bool) (y, x uint64, factored bool
 
 		var cost Dual
 		target := factor
-		for i := 0; i < 8; i++ {
+		for i := 0; i < 2*size; i++ {
 			var a Dual
 			if target&1 == 1 {
 				a.Val = 1.0
@@ -113,7 +118,7 @@ func factorForward(factor uint, limit int, log bool) (y, x uint64, factored bool
 
 		for _, hill := range hills {
 			acc := Dual{Val: 1.0}
-			for i := 0; i < 4; i++ {
+			for i := 0; i < size; i++ {
 				value := device.Get(fmt.Sprintf("Y%d", i))
 				bit := hill.Y & 1
 				if bit == 1 {
@@ -123,7 +128,7 @@ func factorForward(factor uint, limit int, log bool) (y, x uint64, factored bool
 				}
 				hill.Y >>= 1
 			}
-			for i := 0; i < 4; i++ {
+			for i := 0; i < size; i++ {
 				value := device.Get(fmt.Sprintf("X%d", i))
 				bit := hill.X & 1
 				if bit == 1 {
@@ -139,7 +144,7 @@ func factorForward(factor uint, limit int, log bool) (y, x uint64, factored bool
 		// Y != 1
 		hill := 1
 		acc := Dual{Val: 1.0}
-		for i := 0; i < 4; i++ {
+		for i := 0; i < size; i++ {
 			value := device.Get(fmt.Sprintf("Y%d", i))
 			bit := hill & 1
 			if bit == 1 {
@@ -154,7 +159,7 @@ func factorForward(factor uint, limit int, log bool) (y, x uint64, factored bool
 		// X != 1
 		hill = 1
 		acc = Dual{Val: 1.0}
-		for i := 0; i < 4; i++ {
+		for i := 0; i < size; i++ {
 			value := device.Get(fmt.Sprintf("X%d", i))
 			bit := hill & 1
 			if bit == 1 {
@@ -169,7 +174,7 @@ func factorForward(factor uint, limit int, log bool) (y, x uint64, factored bool
 		// Y != 0
 		hill = 0
 		acc = Dual{Val: 1.0}
-		for i := 0; i < 4; i++ {
+		for i := 0; i < size; i++ {
 			value := device.Get(fmt.Sprintf("Y%d", i))
 			bit := hill & 1
 			if bit == 1 {
@@ -184,7 +189,7 @@ func factorForward(factor uint, limit int, log bool) (y, x uint64, factored bool
 		// X != 0
 		hill = 0
 		acc = Dual{Val: 1.0}
-		for i := 0; i < 4; i++ {
+		for i := 0; i < size; i++ {
 			value := device.Get(fmt.Sprintf("X%d", i))
 			bit := hill & 1
 			if bit == 1 {
@@ -237,7 +242,7 @@ func factorForward(factor uint, limit int, log bool) (y, x uint64, factored bool
 	return y, x, factored
 }
 
-func factorForwardProbabilistic(factor uint, limit int, log bool) (y, x uint64, factored bool) {
+func factorForwardProbabilistic(size int, factor uint, limit int, log bool) (y, x uint64, factored bool) {
 	type Hill struct {
 		Y, X uint64
 	}
@@ -420,7 +425,7 @@ search:
 	return y, x, factored
 }
 
-func factorReverse(factor uint, limit int, log bool) (y, x uint64, factored bool) {
+func factorReverse(size int, factor uint, limit int, log bool) (y, x uint64, factored bool) {
 	rand.Seed(1)
 	iterations := 0
 	circuit := Multiplier4()
@@ -498,7 +503,7 @@ func main() {
 		panic(fmt.Errorf("factor must be [0,%d]", 15*15))
 	}
 
-	var f func(factor uint, limit int, log bool) (y, x uint64, factored bool)
+	var f func(size int, factor uint, limit int, log bool) (y, x uint64, factored bool)
 	var iterations int
 	switch *mode {
 	case "forward":
@@ -511,9 +516,16 @@ func main() {
 		panic("invalid mode; valid modes: [forward, reverse, prob]")
 	}
 
+	size := 5
+	max := uint64(1)
+	for i := 0; i < size; i++ {
+		max *= 2
+	}
+	space := (max - 1) * (max - 1)
+
 	if *all {
 		primes := []uint{2, 3}
-		for i := uint(4); i < uint(226); i++ {
+		for i := uint(4); i <= uint(space); i++ {
 			isPrime := true
 			for _, prime := range primes {
 				if i%prime == 0 {
@@ -531,7 +543,7 @@ func main() {
 		}
 
 		factored, total := 0, 0
-		for i := uint(2); i < uint(226); i++ {
+		for i := uint(2); i <= uint(space); i++ {
 			factors := 0
 			for _, prime := range primes {
 				if i%prime == 0 {
@@ -541,7 +553,7 @@ func main() {
 			fmt.Printf("%d (%d)", i, factors)
 			if primeMap[i] {
 				fmt.Printf(" is prime\n")
-			} else if y, x, ok := f(uint(i), iterations, false); ok {
+			} else if y, x, ok := f(size, uint(i), iterations, false); ok {
 				fmt.Printf(" factored %d %d\n", y, x)
 				factored++
 				total++
@@ -549,10 +561,13 @@ func main() {
 				total++
 				fmt.Printf("\n")
 			}
+			if i == 225 {
+				break
+			}
 		}
-		fmt.Printf("factored=%d/%d\n", factored, total)
+		fmt.Printf("factored=%d/%d %f\n", factored, total, float64(factored)/float64(total))
 		return
 	}
 
-	f(*factor, 0, true)
+	f(size, *factor, 0, true)
 }

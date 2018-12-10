@@ -28,3 +28,8 @@ Use waste heat in search
 Reshape search space
 
 Restructure adder network in random ways
+
+4 bit
+factored=81/176 0.460227
+8 bit
+factored=1430/58529 0.024432

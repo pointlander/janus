@@ -109,8 +109,8 @@ func TestDual(t *testing.T) {
 }
 
 func TestMultiplier(t *testing.T) {
-	test := func(size int) {
-		circuit := Multiplier(size)
+	test := func(size int, full FullAdder, half HalfAdder) {
+		circuit := Multiplier(size, full, half)
 		max := uint64(1)
 		for i := 0; i < size; i++ {
 			max *= 2
@@ -144,6 +144,6 @@ func TestMultiplier(t *testing.T) {
 			}
 		}
 	}
-	test(4)
-	test(8)
+	test(4, FullAdderA1, HalfAdderA1)
+	test(8, FullAdderA1, HalfAdderA1)
 }

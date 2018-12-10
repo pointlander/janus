@@ -6,7 +6,58 @@ package main
 
 import "fmt"
 
-func Multiplier(size int) Circuit {
+type FullAdder func(circuit *Circuit, a, b, c, d string) (sum, carry string)
+type HalfAdder func(circuit *Circuit, b, c, d string) (sum, carry string)
+
+func FullAdderA1(circuit *Circuit, a, b, c, d string) (sum, carry string) {
+	circuit.AddGateCCNot(a, b, d)
+	circuit.AddGateCNot(b, a)
+	circuit.AddGateCCNot(a, c, d)
+	circuit.AddGateCNot(c, a)
+	circuit.AddAlias(b, "G")
+	circuit.AddAlias(c, "G")
+	return a, d
+}
+func HalfAdderA1(circuit *Circuit, a, b, d string) (sum, carry string) {
+	circuit.AddGateCCNot(a, b, d)
+	circuit.AddGateCNot(b, a)
+	circuit.AddAlias(b, "G")
+	return a, d
+}
+
+func FullAdderA2(circuit *Circuit, a, b, c, d string) (sum, carry string) {
+	circuit.AddGateCCNot(a, c, d)
+	circuit.AddGateCNot(a, c)
+	circuit.AddGateCCNot(b, c, d)
+	circuit.AddGateCNot(c, b)
+	circuit.AddAlias(a, "G")
+	circuit.AddAlias(c, "G")
+	return b, d
+}
+func HalfAdderA2(circuit *Circuit, b, c, d string) (sum, carry string) {
+	circuit.AddGateCCNot(b, c, d)
+	circuit.AddGateCNot(c, b)
+	circuit.AddAlias(c, "G")
+	return b, d
+}
+
+func FullAdderA3(circuit *Circuit, a, b, c, d string) (sum, carry string) {
+	circuit.AddGateCCNot(a, c, d)
+	circuit.AddGateCNot(a, c)
+	circuit.AddGateCCNot(b, c, d)
+	circuit.AddGateCNot(b, c)
+	circuit.AddAlias(a, "G")
+	circuit.AddAlias(b, "G")
+	return c, d
+}
+func HalfAdderA3(circuit *Circuit, b, c, d string) (sum, carry string) {
+	circuit.AddGateCCNot(b, c, d)
+	circuit.AddGateCNot(b, c)
+	circuit.AddAlias(b, "G")
+	return c, d
+}
+
+func Multiplier(size int, full FullAdder, half HalfAdder) Circuit {
 	circuit := NewCircuit()
 
 	circuit.AddBus("I", 0, true)
@@ -32,35 +83,18 @@ func Multiplier(size int) Circuit {
 		}
 	}
 
-	fullAdder := func(a, b, c, d string) (sum, carry string) {
-		circuit.AddGateCCNot(a, b, d)
-		circuit.AddGateCNot(b, a)
-		circuit.AddGateCCNot(a, c, d)
-		circuit.AddGateCNot(c, a)
-		circuit.AddAlias(b, "G")
-		circuit.AddAlias(c, "G")
-		return a, d
-	}
-	halfAdder := func(a, b, d string) (sum, carry string) {
-		circuit.AddGateCCNot(a, b, d)
-		circuit.AddGateCNot(b, a)
-		circuit.AddAlias(b, "G")
-		return a, d
-	}
-
-	p := 0
 	for i := range sums {
-		product := fmt.Sprintf("P%d", p)
+		product := fmt.Sprintf("P%d", i)
 		for {
 			if length := len(sums[i]); length > 2 {
 				z := circuit.AddWire("Z", false)
-				sum, carry := fullAdder(sums[i][0], sums[i][1], sums[i][2], z)
+				sum, carry := full(&circuit, sums[i][0], sums[i][1], sums[i][2], z)
 				sums[i][2] = sum
 				sums[i] = sums[i][2:]
 				sums[i+1] = append(sums[i+1], carry)
 			} else if length == 2 {
 				z := circuit.AddWire("Z", false)
-				sum, carry := halfAdder(sums[i][0], sums[i][1], z)
+				sum, carry := half(&circuit, sums[i][0], sums[i][1], z)
 				sums[i][1] = sum
 				sums[i] = sums[i][1:]
 				sums[i+1] = append(sums[i+1], carry)
@@ -69,7 +103,6 @@ func Multiplier(size int) Circuit {
 				break
 			}
 		}
-		p++
 	}
 
 	return circuit
