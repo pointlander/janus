@@ -33,3 +33,7 @@ Restructure adder network in random ways
 factored=81/176 0.460227
 8 bit
 factored=1430/58529 0.024432
+
+Have map of inputs and increment with each visit, then use as weight in cost function
+Use different discreet to continuous mappings
+Momentum by summing the gradient for each bit
