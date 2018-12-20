@@ -88,6 +88,23 @@ func (d *DeviceDual) Uint64(prefix string) uint64 {
 	return value
 }
 
+func (d *DeviceDual) String(prefix string) string {
+	width, ok := d.Buses[prefix]
+	if !ok {
+		panic(fmt.Errorf("bus %s not found", prefix))
+	}
+	value, memory := make([]rune, width), d.Memory
+	for i := 0; i < int(width); i++ {
+		name := fmt.Sprintf("%s%d", prefix, i)
+		if memory[d.Wires[d.Resolve(name)].Index].Val > 0.5 {
+			value[i] = '1'
+		} else {
+			value[i] = '0'
+		}
+	}
+	return string(value)
+}
+
 func (d *DeviceDual) AllocateSlice(prefix string) []Dual {
 	count := int(d.Buses[prefix])
 	return make([]Dual, count)

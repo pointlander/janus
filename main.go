@@ -72,26 +72,34 @@ func searchSpace() {
 }
 
 func factorForward(size int, factor uint, limit int, log bool) (y, x uint64, factored bool) {
-	type Hill struct {
-		Y, X uint64
-	}
 	max := uint64(1)
 	for i := 0; i < size; i++ {
 		max *= 2
 	}
-
-	rand.Seed(1)
 	iterations := 0
-	//circuit := Multiplier4()
 	circuit := Multiplier(size, FullAdderA1, HalfAdderA1)
 	device := circuit.NewDeviceDual()
-	//root := uint64(math.Sqrt(float64(factor)))
-	device.SetUint64("Y", max-1)
-	device.SetUint64("X", max-1)
-	hills := []Hill{}
+	hill := func(target int, prefix string) Dual {
+		acc := Dual{Val: 1.0}
+		for i := 0; i < size; i++ {
+			value := device.Get(fmt.Sprintf("%s%d", prefix, i))
+			bit := target & 1
+			if bit == 1 {
+				acc = Mul(acc, value)
+			} else {
+				acc = Mul(acc, Sub(One, value))
+			}
+			target >>= 1
+		}
+		return acc
+	}
+
+	device.SetUint64("Y", uint64(rand.Intn(int(max))))
+	device.SetUint64("X", uint64(rand.Intn(int(max))))
 	inputs := device.AllocateSlice("I")
 	device.GetSlice("I", inputs)
-	lastX, lastY, stuck := uint64(0), uint64(0), 0
+	memory := make(map[string]int)
+	space := 2 * size
 	for {
 		iterations++
 		if limit != 0 && iterations > limit {
@@ -101,6 +109,7 @@ func factorForward(size int, factor uint, limit int, log bool) (y, x uint64, fac
 		input := rand.Intn(len(inputs))
 		inputs[input].Der = 1
 		device.SetSlice("I", inputs)
+		location := device.String("I")
 		inputs[input].Der = 0
 		device.Execute(false)
 
@@ -115,91 +124,10 @@ func factorForward(size int, factor uint, limit int, log bool) (y, x uint64, fac
 			cost = Add(cost, Pow(Sub(a, b), 2))
 			target >>= 1
 		}
-
-		for _, hill := range hills {
-			acc := Dual{Val: 1.0}
-			for i := 0; i < size; i++ {
-				value := device.Get(fmt.Sprintf("Y%d", i))
-				bit := hill.Y & 1
-				if bit == 1 {
-					acc = Mul(acc, value)
-				} else {
-					acc = Mul(acc, Sub(One, value))
-				}
-				hill.Y >>= 1
-			}
-			for i := 0; i < size; i++ {
-				value := device.Get(fmt.Sprintf("X%d", i))
-				bit := hill.X & 1
-				if bit == 1 {
-					acc = Mul(acc, value)
-				} else {
-					acc = Mul(acc, Sub(One, value))
-				}
-				hill.X >>= 1
-			}
-			cost = Add(cost, acc)
-		}
-
-		// Y != 1
-		hill := 1
-		acc := Dual{Val: 1.0}
-		for i := 0; i < size; i++ {
-			value := device.Get(fmt.Sprintf("Y%d", i))
-			bit := hill & 1
-			if bit == 1 {
-				acc = Mul(acc, value)
-			} else {
-				acc = Mul(acc, Sub(One, value))
-			}
-			hill >>= 1
-		}
-		cost = Add(cost, acc)
-
-		// X != 1
-		hill = 1
-		acc = Dual{Val: 1.0}
-		for i := 0; i < size; i++ {
-			value := device.Get(fmt.Sprintf("X%d", i))
-			bit := hill & 1
-			if bit == 1 {
-				acc = Mul(acc, value)
-			} else {
-				acc = Mul(acc, Sub(One, value))
-			}
-			hill >>= 1
-		}
-		cost = Add(cost, acc)
-
-		// Y != 0
-		hill = 0
-		acc = Dual{Val: 1.0}
-		for i := 0; i < size; i++ {
-			value := device.Get(fmt.Sprintf("Y%d", i))
-			bit := hill & 1
-			if bit == 1 {
-				acc = Mul(acc, value)
-			} else {
-				acc = Mul(acc, Sub(One, value))
-			}
-			hill >>= 1
-		}
-		cost = Add(cost, acc)
-
-		// X != 0
-		hill = 0
-		acc = Dual{Val: 1.0}
-		for i := 0; i < size; i++ {
-			value := device.Get(fmt.Sprintf("X%d", i))
-			bit := hill & 1
-			if bit == 1 {
-				acc = Mul(acc, value)
-			} else {
-				acc = Mul(acc, Sub(One, value))
-			}
-			hill >>= 1
-		}
-		cost = Add(cost, acc)
+		cost = Add(cost, hill(1, "Y"))
+		cost = Add(cost, hill(1, "X"))
+		cost = Add(cost, hill(0, "Y"))
+		cost = Add(cost, hill(0, "X"))
 
 		if log {
 			fmt.Printf("%d Val: %f, Der: %f\n", input, cost.Val, cost.Der)
@@ -214,30 +142,23 @@ func factorForward(size int, factor uint, limit int, log bool) (y, x uint64, fac
 			break
 		}
 
-		if cost.Der > 0 {
+		count := memory[location]
+		if count < space {
+			memory[location] = count + 1
+		}
+
+		if float64(count)/float64(space) > rand.Float64() {
+			inputs[input].Val = 1 - inputs[input].Val
+		} else if cost.Der > 0 {
 			inputs[input].Val = 0
 		} else if cost.Der < 0 {
 			inputs[input].Val = 1
-		}
-
-		yy := device.Uint64("Y")
-		xx := device.Uint64("X")
-		if yy == lastY && xx == lastX {
-			stuck++
-		} else {
-			stuck = 0
-		}
-		lastY, lastX = yy, xx
-		if stuck > 16 {
-			stuck = 0
-			hills = append(hills, Hill{Y: yy, X: xx})
 		}
 
 		device.Reset()
 	}
 	if log {
 		fmt.Printf("iterations=%d\n", iterations)
-		fmt.Printf("hills=%d\n", hills)
 	}
 	return y, x, factored
 }
@@ -247,7 +168,6 @@ func factorForwardProbabilistic(size int, factor uint, limit int, log bool) (y, 
 		Y, X uint64
 	}
 
-	rand.Seed(1)
 	iterations := 0
 	circuit := Multiplier4()
 	device := circuit.NewDeviceDual()
@@ -426,7 +346,6 @@ search:
 }
 
 func factorReverse(size int, factor uint, limit int, log bool) (y, x uint64, factored bool) {
-	rand.Seed(1)
 	iterations := 0
 	circuit := Multiplier4()
 	device := circuit.NewDeviceDual()
@@ -487,6 +406,8 @@ search:
 }
 
 func main() {
+	rand.Seed(1)
+
 	flag.Parse()
 
 	if *help {
@@ -507,7 +428,7 @@ func main() {
 	var iterations int
 	switch *mode {
 	case "forward":
-		f, iterations = factorForward, 1000
+		f, iterations = factorForward, 2000
 	case "reverse":
 		f, iterations = factorReverse, 100
 	case "prob":
@@ -553,13 +474,19 @@ func main() {
 			fmt.Printf("%d (%d)", i, factors)
 			if primeMap[i] {
 				fmt.Printf(" is prime\n")
-			} else if y, x, ok := f(size, uint(i), iterations, false); ok {
-				fmt.Printf(" factored %d %d\n", y, x)
-				factored++
-				total++
 			} else {
-				total++
-				fmt.Printf("\n")
+				y, x, ok := f(size, uint(i), iterations, false)
+				/*for j := 0; j < 2 && !ok; j++ {
+					y, x, ok = f(size, uint(i), iterations, false)
+				}*/
+				if ok {
+					fmt.Printf(" factored %d %d\n", y, x)
+					factored++
+					total++
+				} else {
+					total++
+					fmt.Printf("\n")
+				}
 			}
 			if i == 225 {
 				break
