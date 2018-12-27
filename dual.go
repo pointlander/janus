@@ -6,7 +6,10 @@ package main
 
 import "math"
 
-var One = Dual{Val: 1.0}
+var (
+	Half = Dual{Val: 0.5}
+	One  = Dual{Val: 1.0}
+)
 
 type Dual struct {
 	Val, Der float32
@@ -59,6 +62,11 @@ func Exp(d Dual) Dual {
 		Val: float32(math.Exp(float64(d.Val))),
 		Der: d.Der * float32(math.Exp(float64(d.Val))),
 	}
+}
+
+func Sigmoid(d Dual) Dual {
+	e := Exp(d)
+	return Div(e, Add(e, One))
 }
 
 func Log(d Dual) Dual {

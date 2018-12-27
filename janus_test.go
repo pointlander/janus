@@ -147,3 +147,34 @@ func TestMultiplier(t *testing.T) {
 	test(4, FullAdderA1, HalfAdderA1)
 	test(8, FullAdderA1, HalfAdderA1)
 }
+
+func TestNetwork(t *testing.T) {
+	network := NewNetwork(2, 2, 1)
+	data := []TrainingData{
+		{
+			[]float32{0, 0}, []float32{0},
+		},
+		{
+			[]float32{1, 0}, []float32{1},
+		},
+		{
+			[]float32{0, 1}, []float32{1},
+		},
+		{
+			[]float32{1, 1}, []float32{0},
+		},
+	}
+	network.Train(data, 1000, .4, .6)
+	state := network.NewNetState()
+	for _, item := range data {
+		for i, input := range item.Inputs {
+			state.State[0][i].Val = input
+		}
+		state.Inference()
+		output := state.State[2][0].Val > .5
+		expected := item.Outputs[0] > .5
+		if output != expected {
+			t.Fatal(state.State[2][0].Val, item)
+		}
+	}
+}
