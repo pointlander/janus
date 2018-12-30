@@ -6,9 +6,107 @@ package main
 
 import "fmt"
 
+type Mapping interface {
+	Not(a Dual) Dual
+	CNot(a, b Dual) Dual
+	CCNot(a, b, c Dual) Dual
+}
+
+type HyperbolicParaboloidMapping struct {
+}
+
+func (h *HyperbolicParaboloidMapping) Not(a Dual) Dual {
+	return Sub(One, a)
+}
+
+func (h *HyperbolicParaboloidMapping) CNot(a, b Dual) Dual {
+	return Add(Mul(Sub(One, a), b), Mul(Sub(One, b), a))
+}
+
+func (h *HyperbolicParaboloidMapping) CCNot(a, b, c Dual) Dual {
+	return Add(Mul(Sub(One, Mul(a, b)), c), Mul(Mul(Sub(One, c), a), b))
+}
+
+type NeuralMapping struct {
+	CNotNetwork, CCNotNetwork NetState
+}
+
+func NewNeuralMapping() *NeuralMapping {
+	cNotNetwork := NewNetwork(2, 2, 1)
+	data := []TrainingData{
+		{
+			[]float32{0, 0}, []float32{0},
+		},
+		{
+			[]float32{1, 0}, []float32{1},
+		},
+		{
+			[]float32{0, 1}, []float32{1},
+		},
+		{
+			[]float32{1, 1}, []float32{0},
+		},
+	}
+	cNotNetwork.Train(data, .001, .4, .6)
+
+	ccNotNetwork := NewNetwork(3, 3, 1)
+	data = []TrainingData{
+		{
+			[]float32{0, 0, 0}, []float32{0},
+		},
+		{
+			[]float32{1, 0, 0}, []float32{0},
+		},
+		{
+			[]float32{0, 1, 0}, []float32{0},
+		},
+		{
+			[]float32{1, 1, 0}, []float32{1},
+		},
+		{
+			[]float32{0, 0, 1}, []float32{1},
+		},
+		{
+			[]float32{1, 0, 1}, []float32{1},
+		},
+		{
+			[]float32{0, 1, 1}, []float32{1},
+		},
+		{
+			[]float32{1, 1, 1}, []float32{0},
+		},
+	}
+	ccNotNetwork.Train(data, .001, .4, .6)
+
+	return &NeuralMapping{
+		CNotNetwork:  cNotNetwork.NewNetState(),
+		CCNotNetwork: ccNotNetwork.NewNetState(),
+	}
+}
+
+func (n *NeuralMapping) Not(a Dual) Dual {
+	return Sub(One, a)
+}
+
+func (n *NeuralMapping) CNot(a, b Dual) Dual {
+	n.CNotNetwork.State[0][0] = a
+	n.CNotNetwork.State[0][1] = b
+	n.CNotNetwork.Inference()
+	return n.CNotNetwork.State[2][0]
+}
+
+func (n *NeuralMapping) CCNot(a, b, c Dual) Dual {
+	n.CCNotNetwork.State[0][0] = a
+	n.CCNotNetwork.State[0][1] = b
+	n.CCNotNetwork.State[0][2] = c
+	n.CCNotNetwork.Inference()
+	return n.CCNotNetwork.State[2][0]
+}
+
 type DeviceDual struct {
 	*Circuit
-	Memory []Dual
+	Memory  []Dual
+	Mapping Mapping
 }
 
 func (d *DeviceDual) Reset() {
@@ -127,7 +225,8 @@ func (d *DeviceDual) SetSlice(prefix string, values []Dual) {
 }
 
 func (d *DeviceDual) Execute(reverse bool) {
-	memory := d.Memory
+	memory, mapping := d.Memory, d.Mapping
+	not, cnot, ccnot := mapping.Not, mapping.CNot, mapping.CCNot
 
 	if reverse {
 		for i := len(d.Gates) - 1; i >= 0; i-- {
@@ -135,19 +234,16 @@ func (d *DeviceDual) Execute(reverse bool) {
 			switch gate.Type {
 			case GateTypeNot:
 				a := memory[gate.Taps[0]]
-				a = Sub(One, a)
-				memory[gate.Taps[0]] = a
+				memory[gate.Taps[0]] = not(a)
 			case GateTypeCNot:
 				a := memory[gate.Taps[0]]
 				b := memory[gate.Taps[1]]
-				b = Add(Mul(Sub(One, a), b), Mul(Sub(One, b), a))
-				memory[gate.Taps[1]] = b
+				memory[gate.Taps[1]] = cnot(a, b)
 			case GateTypeCCNot:
 				a := memory[gate.Taps[0]]
 				b := memory[gate.Taps[1]]
 				c := memory[gate.Taps[2]]
-				c = Add(Mul(Sub(One, Mul(a, b)), c), Mul(Mul(Sub(One, c), a), b))
-				memory[gate.Taps[2]] = c
+				memory[gate.Taps[2]] = ccnot(a, b, c)
 			}
 		}
 		return
@@ -157,19 +253,16 @@ func (d *DeviceDual) Execute(reverse bool) {
 		switch gate.Type {
 		case GateTypeNot:
 			a := memory[gate.Taps[0]]
-			a = Sub(One, a)
-			memory[gate.Taps[0]] = a
+			memory[gate.Taps[0]] = not(a)
 		case GateTypeCNot:
 			a := memory[gate.Taps[0]]
 			b := memory[gate.Taps[1]]
-			b = Add(Mul(Sub(One, a), b), Mul(Sub(One, b), a))
-			memory[gate.Taps[1]] = b
+			memory[gate.Taps[1]] = cnot(a, b)
 		case GateTypeCCNot:
 			a := memory[gate.Taps[0]]
 			b := memory[gate.Taps[1]]
 			c := memory[gate.Taps[2]]
-			c = Add(Mul(Sub(One, Mul(a, b)), c), Mul(Mul(Sub(One, c), a), b))
-			memory[gate.Taps[2]] = c
+			memory[gate.Taps[2]] = ccnot(a, b, c)
 		}
 	}
 }

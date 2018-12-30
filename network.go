@@ -5,7 +5,6 @@
 package main
 
 import (
-	"fmt"
 	"math"
 	"math/rand"
 )
@@ -80,12 +79,18 @@ type TrainingData struct {
 	Inputs, Outputs []float32
 }
 
-func (n *Network) Train(data []TrainingData, iterations int, alpha, eta float32) {
-	state := n.NewNetState()
-	for i := 0; i < iterations; i++ {
-		//cost, item := 0.0, data[rand.Intn(len(data))]
+func (n *Network) Train(data []TrainingData, target float64, alpha, eta float32) int {
+	size := len(data)
+	iterations, state, randomized := 0, n.NewNetState(), make([]TrainingData, size)
+	copy(randomized, data)
+	for {
+		for i, sample := range randomized {
+			j := i + rand.Intn(size-i)
+			randomized[i], randomized[j] = randomized[j], sample
+		}
+
 		total := 0.0
-		for _, item := range data {
+		for _, item := range randomized {
 			cost := 0.0
 			for j, input := range item.Inputs {
 				state.State[0][j].Val = input
@@ -134,6 +139,11 @@ func (n *Network) Train(data []TrainingData, iterations int, alpha, eta float32)
 				}
 			}
 		}
-		fmt.Println(i, total)
+		iterations++
+		if total < target {
+			break
+		}
 	}
+
+	return iterations
 }

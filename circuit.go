@@ -226,7 +226,7 @@ func (c *Circuit) NewDeviceFloat32() DeviceFloat32 {
 	}
 }
 
-func (c *Circuit) NewDeviceDual() DeviceDual {
+func (c *Circuit) NewDeviceDual(mapping Mapping) DeviceDual {
 	memory := make([]Dual, len(c.Wires))
 	for _, value := range c.Wires {
 		if value.Nominal {
@@ -236,5 +236,6 @@ func (c *Circuit) NewDeviceDual() DeviceDual {
 	return DeviceDual{
 		Circuit: c,
 		Memory:  memory,
+		Mapping: mapping,
 	}
 }

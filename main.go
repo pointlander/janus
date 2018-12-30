@@ -78,7 +78,7 @@ func factorForward(size int, factor uint, limit int, log bool) (y, x uint64, fac
 	}
 	iterations := 0
 	circuit := Multiplier(size, FullAdderA1, HalfAdderA1)
-	device := circuit.NewDeviceDual()
+	device := circuit.NewDeviceDual(&HyperbolicParaboloidMapping{})
 	hill := func(target int, prefix string) Dual {
 		acc := Dual{Val: 1.0}
 		for i := 0; i < size; i++ {
@@ -170,7 +170,7 @@ func factorForwardProbabilistic(size int, factor uint, limit int, log bool) (y, 
 
 	iterations := 0
 	circuit := Multiplier4()
-	device := circuit.NewDeviceDual()
+	device := circuit.NewDeviceDual(&HyperbolicParaboloidMapping{})
 	//root := uint64(math.Sqrt(float64(factor)))
 	device.SetUint64("Y", 15)
 	device.SetUint64("X", 15)
@@ -348,7 +348,7 @@ search:
 func factorReverse(size int, factor uint, limit int, log bool) (y, x uint64, factored bool) {
 	iterations := 0
 	circuit := Multiplier4()
-	device := circuit.NewDeviceDual()
+	device := circuit.NewDeviceDual(&HyperbolicParaboloidMapping{})
 	values := device.AllocateSlice("G")
 	for i := range values {
 		if rand.Intn(2) == 0 {

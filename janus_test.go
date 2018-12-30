@@ -7,6 +7,7 @@ package main
 import (
 	"fmt"
 	"math"
+	"math/rand"
 	"testing"
 )
 
@@ -72,32 +73,37 @@ func TestMultiplier4xFloat32(t *testing.T) {
 
 func TestMultiplier4xDual(t *testing.T) {
 	circuit := Multiplier4()
-	device := circuit.NewDeviceDual()
-	for y := uint64(0); y < 16; y++ {
-		for x := uint64(0); x < 16; x++ {
-			device.SetUint64("Y", y)
-			device.SetUint64("X", x)
-			device.Execute(false)
-			r := device.Uint64("P")
-			if r != x*y {
-				t.Fatalf("%d * %d != %d (%d)", x, y, r, x*y)
-			}
-			device.Execute(true)
-			for i := 0; i < 16; i++ {
-				name := fmt.Sprintf("A%d", i)
-				if signal := device.Get(name); signal.Val > 0.5 {
-					t.Fatal("should be zero", name, signal)
+	test := func(mapping Mapping) {
+		rand.Seed(1)
+		device := circuit.NewDeviceDual(mapping)
+		for y := uint64(0); y < 16; y++ {
+			for x := uint64(0); x < 16; x++ {
+				device.SetUint64("Y", y)
+				device.SetUint64("X", x)
+				device.Execute(false)
+				r := device.Uint64("P")
+				if r != x*y {
+					t.Fatalf("%d * %d != %d (%d)", x, y, r, x*y)
 				}
-			}
-			for i := 0; i < 12; i++ {
-				name := fmt.Sprintf("Z%d", i)
-				if signal := device.Get(name); signal.Val > 0.5 {
-					t.Fatal("should be zero", name, signal)
+				device.Execute(true)
+				for i := 0; i < 16; i++ {
+					name := fmt.Sprintf("A%d", i)
+					if signal := device.Get(name); signal.Val > 0.5 {
+						t.Fatal("should be zero", name, signal)
+					}
 				}
+				for i := 0; i < 12; i++ {
+					name := fmt.Sprintf("Z%d", i)
+					if signal := device.Get(name); signal.Val > 0.5 {
+						t.Fatal("should be zero", name, signal)
+					}
+				}
+				device.Reset()
 			}
-			device.Reset()
 		}
 	}
+	test(&HyperbolicParaboloidMapping{})
+	test(NewNeuralMapping())
 }
 
 func TestDual(t *testing.T) {
@@ -149,6 +155,7 @@ func TestMultiplier(t *testing.T) {
 }
 
 func TestNetwork(t *testing.T) {
+	rand.Seed(1)
 	network := NewNetwork(2, 2, 1)
 	data := []TrainingData{
 		{
@@ -164,7 +171,53 @@ func TestNetwork(t *testing.T) {
 			[]float32{1, 1}, []float32{0},
 		},
 	}
-	network.Train(data, 1000, .4, .6)
+	iterations := network.Train(data, .001, .4, .6)
+	t.Log(iterations)
+	state := network.NewNetState()
+	for _, item := range data {
+		for i, input := range item.Inputs {
+			state.State[0][i].Val = input
+		}
+		state.Inference()
+		output := state.State[2][0].Val > .5
+		expected := item.Outputs[0] > .5
+		if output != expected {
+			t.Fatal(state.State[2][0].Val, item)
+		}
+	}
+}
+
+func TestNetworkCCNOT(t *testing.T) {
+	rand.Seed(1)
+	network := NewNetwork(3, 3, 1)
+	data := []TrainingData{
+		{
+			[]float32{0, 0, 0}, []float32{0},
+		},
+		{
+			[]float32{1, 0, 0}, []float32{0},
+		},
+		{
+			[]float32{0, 1, 0}, []float32{0},
+		},
+		{
+			[]float32{1, 1, 0}, []float32{1},
+		},
+		{
+			[]float32{0, 0, 1}, []float32{1},
+		},
+		{
+			[]float32{1, 0, 1}, []float32{1},
+		},
+		{
+			[]float32{0, 1, 1}, []float32{1},
+		},
+		{
+			[]float32{1, 1, 1}, []float32{0},
+		},
+	}
+	iterations := network.Train(data, .001, .4, .6)
+	t.Log(iterations)
 	state := network.NewNetState()
 	for _, item := range data {
 		for i, input := range item.Inputs {
