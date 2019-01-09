@@ -9,3 +9,7 @@ https://arxiv.org/abs/0907.3357
 https://medium.com/@omaraflak/automatic-differentiation-4d26d03b7508  
 https://github.com/OmarAflak/Automatic-Differentiation  
 https://en.wikipedia.org/wiki/Dual_number#Differentiation  
+
+# Foundations for Efficient and Expressive Differentiable Programming
+https://news.ycombinator.com/item?id=18747767  
+http://papers.nips.cc/paper/8221-backpropagation-with-callbacks-foundations-for-efficient-and-expressive-differentiable-programming.pdf  
