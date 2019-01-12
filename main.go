@@ -163,6 +163,101 @@ func factorForward(size int, factor uint, limit int, log bool) (y, x uint64, fac
 	return y, x, factored
 }
 
+func factorForwardNeural(size int, factor uint, limit int, log bool) (y, x uint64, factored bool) {
+	rand.Seed(1)
+	max := uint64(1)
+	for i := 0; i < size; i++ {
+		max *= 2
+	}
+	iterations := 0
+	circuit := Multiplier(size, FullAdderA1, HalfAdderA1)
+	device := circuit.NewDeviceDual(NewNeuralMapping())
+	hill := func(target int, prefix string) Dual {
+		acc := Dual{Val: 1.0}
+		for i := 0; i < size; i++ {
+			value := device.Get(fmt.Sprintf("%s%d", prefix, i))
+			bit := target & 1
+			if bit == 1 {
+				acc = Mul(acc, value)
+			} else {
+				acc = Mul(acc, Sub(One, value))
+			}
+			target >>= 1
+		}
+		return acc
+	}
+
+	device.SetUint64("Y", uint64(rand.Intn(int(max))))
+	device.SetUint64("X", uint64(rand.Intn(int(max))))
+	inputs := device.AllocateSlice("I")
+	device.GetSlice("I", inputs)
+	gradients, deltas := make([]float32, len(inputs)), make([]float32, len(inputs))
+	alpha, eta := float32(.2), float32(.8)
+	for {
+		iterations++
+		if limit != 0 && iterations > limit {
+			break
+		}
+
+		var networkCost float32
+		for i := range inputs {
+			inputs[i].Der = 1
+			device.SetSlice("I", inputs)
+			inputs[i].Der = 0
+			device.Execute(false)
+
+			var cost Dual
+			target := factor
+			for j := 0; j < 2*size; j++ {
+				var a Dual
+				if target&1 == 1 {
+					a.Val = 1.0
+				}
+				b := device.Get(fmt.Sprintf("P%d", j))
+				cost = Add(cost, Pow(Sub(a, b), 2))
+				target >>= 1
+			}
+			cost = Add(cost, hill(1, "Y"))
+			cost = Add(cost, hill(1, "X"))
+			cost = Add(cost, hill(0, "Y"))
+			cost = Add(cost, hill(0, "X"))
+			networkCost = cost.Val
+			gradients[i] = cost.Der
+			device.Reset()
+		}
+
+		if math.IsNaN(float64(networkCost)) {
+			break
+		}
+
+		for i := range inputs {
+			deltas[i] = alpha*deltas[i] - eta*gradients[i]
+			inputs[i].Val += deltas[i]
+			if inputs[i].Val < 0 {
+				inputs[i].Val = 0
+			} else if inputs[i].Val > 1 {
+				inputs[i].Val = 1
+			}
+		}
+
+		device.SetSlice("I", inputs)
+		device.Execute(false)
+		p, yy, xx := device.Uint64("P"), device.Uint64("Y"), device.Uint64("X")
+		if p == uint64(factor) {
+			break
+		}
+		if log {
+			fmt.Printf("cost: %f\n", networkCost)
+			fmt.Printf("P: %d, Y: %d, X: %d\n", p, yy, xx)
+		}
+		device.Reset()
+	}
+	if log {
+		fmt.Printf("iterations=%d\n", iterations)
+	}
+	return y, x, factored
+}
+
 func factorForwardProbabilistic(size int, factor uint, limit int, log bool) (y, x uint64, factored bool) {
 	type Hill struct {
 		Y, X uint64
@@ -429,6 +524,8 @@ func main() {
 	switch *mode {
 	case "forward":
 		f, iterations = factorForward, 2000
+	case "neural":
+		f, iterations = factorForwardNeural, 2000
 	case "reverse":
 		f, iterations = factorReverse, 100
 	case "prob":
