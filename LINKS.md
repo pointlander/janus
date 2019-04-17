@@ -13,3 +13,9 @@ https://en.wikipedia.org/wiki/Dual_number#Differentiation
 # Foundations for Efficient and Expressive Differentiable Programming
 https://news.ycombinator.com/item?id=18747767  
 http://papers.nips.cc/paper/8221-backpropagation-with-callbacks-foundations-for-efficient-and-expressive-differentiable-programming.pdf  
+
+# Mathematicians Discover the Perfect Way to Multiply
+https://news.ycombinator.com/item?id=19672835 
+
+# Integer multiplication in time O(n log n)
+https://news.ycombinator.com/item?id=19474280
