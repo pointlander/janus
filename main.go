@@ -18,6 +18,7 @@ var (
 	factor = flag.Uint("factor", 77, "number to factor")
 	all    = flag.Bool("all", false, "factor all numbers")
 	mode   = flag.String("mode", "forward", "factoring algorithm")
+	test   = flag.Bool("test", false, "test mode")
 )
 
 func searchSpace() {
@@ -504,6 +505,28 @@ func main() {
 	rand.Seed(1)
 
 	flag.Parse()
+
+	if *test {
+		circuit := Multiplier4()
+		device := circuit.NewDeviceBool()
+		device.SetUint64("Y", 2)
+		device.SetUint64("X", 3)
+		device.Execute(false)
+		r := device.Uint64("P")
+		fmt.Println(r)
+		device.Execute(true)
+		for i := 0; i < 16; i++ {
+			name := fmt.Sprintf("A%d", i)
+			fmt.Println(name, device.Get(name))
+		}
+		for i := 0; i < 12; i++ {
+			name := fmt.Sprintf("Z%d", i)
+			fmt.Println(name, device.Get(name))
+		}
+		fmt.Println("Y", device.Uint64("Y"))
+		fmt.Println("X", device.Uint64("X"))
+		return
+	}
 
 	if *help {
 		flag.PrintDefaults()
