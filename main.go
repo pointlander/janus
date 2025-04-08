@@ -509,22 +509,32 @@ func main() {
 	if *test {
 		circuit := Multiplier4()
 		device := circuit.NewDeviceBool()
-		device.SetUint64("Y", 2)
-		device.SetUint64("X", 3)
-		device.Execute(false)
-		r := device.Uint64("P")
-		fmt.Println(r)
-		device.Execute(true)
-		for i := 0; i < 16; i++ {
-			name := fmt.Sprintf("A%d", i)
-			fmt.Println(name, device.Get(name))
+		for x := 0; x < 4; x++ {
+			for y := 0; y < 4; y++ {
+				for i := 0; i <= 3*3; i++ {
+					device.SetUint64("X", uint64(x))
+					device.SetUint64("Y", uint64(y))
+					device.SetUint64("P", uint64(i))
+					device.Execute(true)
+					countA := 0
+					for i := 0; i < 16; i++ {
+						name := fmt.Sprintf("A%d", i)
+						if device.Get(name) {
+							countA++
+						}
+					}
+					countB := 0
+					for i := 0; i < 12; i++ {
+						name := fmt.Sprintf("Z%d", i)
+						if device.Get(name) {
+							countB++
+						}
+					}
+					fmt.Println(x, y, i, countA, countB)
+					device.Reset()
+				}
+			}
 		}
-		for i := 0; i < 12; i++ {
-			name := fmt.Sprintf("Z%d", i)
-			fmt.Println(name, device.Get(name))
-		}
-		fmt.Println("Y", device.Uint64("Y"))
-		fmt.Println("X", device.Uint64("X"))
 		return
 	}
 
