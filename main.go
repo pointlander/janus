@@ -507,33 +507,33 @@ func main() {
 	flag.Parse()
 
 	if *test {
-		circuit := Multiplier4()
-		device := circuit.NewDeviceBool()
-		for x := 0; x < 4; x++ {
-			for y := 0; y < 4; y++ {
-				for i := 0; i <= 3*3; i++ {
-					device.SetUint64("X", uint64(x))
-					device.SetUint64("Y", uint64(y))
-					device.SetUint64("P", uint64(i))
-					device.Execute(true)
-					countA := 0
-					for i := 0; i < 16; i++ {
-						name := fmt.Sprintf("A%d", i)
-						if device.Get(name) {
-							countA++
-						}
-					}
-					countB := 0
-					for i := 0; i < 12; i++ {
-						name := fmt.Sprintf("Z%d", i)
-						if device.Get(name) {
-							countB++
-						}
-					}
-					fmt.Println(x, y, i, countA, countB)
-					device.Reset()
+		const max = (1 << 28)
+		for i := 0; i < max; i++ {
+			circuit := Multiplier4()
+			device := circuit.NewDeviceBool()
+			device.SetUint64("P", uint64(81))
+			device.SetUint64("G", uint64(i))
+			device.Execute(true)
+			countA := 0
+			for j := 0; j < 16; j++ {
+				name := fmt.Sprintf("A%d", j)
+				if device.Get(name) {
+					countA++
 				}
 			}
+			countB := 0
+			for j := 0; j < 12; j++ {
+				name := fmt.Sprintf("Z%d", j)
+				if device.Get(name) {
+					countB++
+				}
+			}
+			if countA == 0 && countB == 0 {
+				fmt.Println(device.Uint64("X"), device.Uint64("Y"), device.Uint64("P"))
+			} else {
+				fmt.Println(float64(i) / float64(max))
+			}
+			device.Reset()
 		}
 		return
 	}
